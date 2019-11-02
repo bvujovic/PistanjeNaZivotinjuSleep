@@ -10,11 +10,11 @@
     - Mozda bi trebalo ubaciti V boost zbog stabilnog 5V napona.
 */
 
-const int pinPIR = 2;     // PIR senzor; ako se promeni ova vrednost, obavezno izmeniti PCINT? u sleep() i setup()
-const int pinBuzz = 0;    // buzzer/zvucnik
-const int itvBuzz = 1000; // trajanje u msec piska i vremena izmedju 2 piska
+const int pinPIR = 2;        // PIR senzor; ako se promeni ova vrednost, obavezno izmeniti PCINT? u sleep() i setup()
+const int pinBuzz = 0;       // buzzer/zvucnik
+const int itvBuzzOn = 500;   // trajanje u msec piska
+const int itvBuzzOff = 1000; // trajanje u msec vremena izmedju 2 piska
 // const int buzzLevel = 50;       // jacina zvuka na buzzer-u
-// const int itvBuzzOdmor = 10000; // delay interval koji ide posle pishtanja
 
 volatile long msPirSignal = 0; // vreme (poslednjeg) PIR signala
 
@@ -28,23 +28,20 @@ void setup()
   GIMSK |= _BV(PCIE);   // Enable Pin Change Interrupts
   PCMSK |= _BV(PCINT2); // Use PBX as interrupt pin
   sei();                // Enable interrupts
-
-  // do
-  //   delay(itvMain);
-  // while (digitalRead(pinPIR)); // cekamo dogod je inicijalni HIGH signal na PIRu
 }
 
-ISR(PCINT0_vect)
-{
-  if (!digitalRead(pinPIR)) // ne zanima me trenutak kada PIR signal pada na 0
-    return;
-  msPirSignal = millis();
-  digitalWrite(pinBuzz, true);
-}
+ISR(PCINT0_vect) {}
 
 void loop()
 {
-  long itv = millis() - msPirSignal;
-  if (itv > itvBuzz)
+  if (digitalRead(pinPIR))
+  {
+    int itv = millis() % (itvBuzzOn + itvBuzzOff);
+    digitalWrite(pinBuzz, itv < itvBuzzOn);
+  }
+  else
+  {
     digitalWrite(pinBuzz, false);
+    //TODO sleep
+  }
 }
