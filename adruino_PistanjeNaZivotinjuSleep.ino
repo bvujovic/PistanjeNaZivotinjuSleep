@@ -3,7 +3,6 @@
   Arduino: ATtiny85
   Napajanje: 18650
   Senzori:
-    On/off dugme
     - PIR - detekcija zivotinje
   Aktuatori:
     - Buzzer
@@ -11,45 +10,41 @@
     - Mozda bi trebalo ubaciti V boost zbog stabilnog 5V napona.
 */
 
+const int pinPIR = 2;     // PIR senzor; ako se promeni ova vrednost, obavezno izmeniti PCINT? u sleep() i setup()
+const int pinBuzz = 0;    // buzzer/zvucnik
+const int itvBuzz = 1000; // trajanje u msec piska i vremena izmedju 2 piska
+// const int buzzLevel = 50;       // jacina zvuka na buzzer-u
+// const int itvBuzzOdmor = 10000; // delay interval koji ide posle pishtanja
 
-const int pinPIR = 2;
+volatile long msPirSignal = 0; // vreme (poslednjeg) PIR signala
 
-const int pinBuzz = 3;
-const int jacinaPiska = 50;
-const int itvBuzz = 500; // trajanje u msec piska i vremena izmedju 2 piska
-const int itvBuzzOdmor = 10000; // delay interval koji ide posle pishtanja
-
-const int itvMain = 200;
-//B const int itvInit = 5000;
-
-void setup() {
+void setup()
+{
   pinMode(pinPIR, INPUT);
 
   pinMode(pinBuzz, OUTPUT);
   digitalWrite(pinBuzz, false);
 
-  //B delay(itvBuzzOdmor);
-  do
-    delay(itvMain);
-  while (digitalRead(pinPIR)); // cekamo dogod je inicijalni HIGH signal na PIRu
+  GIMSK |= _BV(PCIE);   // Enable Pin Change Interrupts
+  PCMSK |= _BV(PCINT2); // Use PBX as interrupt pin
+  sei();                // Enable interrupts
+
+  // do
+  //   delay(itvMain);
+  // while (digitalRead(pinPIR)); // cekamo dogod je inicijalni HIGH signal na PIRu
 }
 
-void loop() {
-  if (digitalRead(pinPIR))
-    pishtanje();
-
-  delay(itvMain);
-}
-
-void pishtanje()
+ISR(PCINT0_vect)
 {
-  for (int i = 1; i <= 3; i++)
-  {
-    //B analogWrite(pinBuzz, jacinaPiska);
-    digitalWrite(pinBuzz, true);
-    delay(itvBuzz);
+  if (!digitalRead(pinPIR)) // ne zanima me trenutak kada PIR signal pada na 0
+    return;
+  msPirSignal = millis();
+  digitalWrite(pinBuzz, true);
+}
+
+void loop()
+{
+  long itv = millis() - msPirSignal;
+  if (itv > itvBuzz)
     digitalWrite(pinBuzz, false);
-    delay(itvBuzz);
-  }
-  delay(itvBuzzOdmor);
 }
