@@ -10,13 +10,16 @@
     - Mozda bi trebalo ubaciti V boost zbog stabilnog 5V napona.
 */
 
-const int pinPIR = 2;        // PIR senzor; ako se promeni ova vrednost, obavezno izmeniti PCINT? u sleep() i setup()
-const int pinBuzz = 0;       // buzzer/zvucnik
-const int itvBuzzOn = 500;   // trajanje u msec piska
-const int itvBuzzOff = 1000; // trajanje u msec vremena izmedju 2 piska
-// const int buzzLevel = 50;       // jacina zvuka na buzzer-u
+#include <avr/sleep.h>
+#include <avr/interrupt.h>
 
+const int pinPIR = 2;       // PIR senzor; ako se promeni ova vrednost, obavezno izmeniti PCINT? u sleep() i setup()
+const int pinBuzz = 0;      // buzzer/zvucnik
+const int itvBuzzOn = 400;  // trajanje u msec piska
+const int itvBuzzOff = 800; // trajanje u msec vremena izmedju 2 piska
+// const int buzzLevel = 50;       // jacina zvuka na buzzer-u
 volatile long msPirSignal = 0; // vreme (poslednjeg) PIR signala
+bool firstPirSignal = true;    // prvi PIR signal se javlja odmah po paljenju aparata i smatra se laznim
 
 void setup()
 {
@@ -30,18 +33,33 @@ void setup()
   sei();                // Enable interrupts
 }
 
-ISR(PCINT0_vect) {}
+void sleep()
+{
+  GIMSK |= _BV(PCIE);                  // Enable Pin Change Interrupts
+  PCMSK |= _BV(PCINT2);                // Use PBX as interrupt pin
+  ADCSRA &= ~_BV(ADEN);                // ADC off
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN); // replaces above statement
+  sleep_enable();                      // Sets the Sleep Enable bit in the MCUCR Register (SE BIT)
+  sei();                               // Enable interrupts
+  sleep_cpu();                         // sleep
+}
+
+ISR(PCINT0_vect)
+{
+  msPirSignal = millis();
+}
 
 void loop()
 {
-  if (digitalRead(pinPIR))
+  if (digitalRead(pinPIR) && !firstPirSignal)
   {
-    int itv = millis() % (itvBuzzOn + itvBuzzOff);
+    int itv = (millis() - msPirSignal) % (itvBuzzOn + itvBuzzOff);
     digitalWrite(pinBuzz, itv < itvBuzzOn);
   }
   else
   {
+    firstPirSignal = false;
     digitalWrite(pinBuzz, false);
-    //TODO sleep
+    sleep();
   }
 }
