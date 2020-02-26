@@ -7,15 +7,15 @@
     - 2 tastera: vol+ i vol- za buzzer
   Aktuatori:
     - Buzzer
-  Napomene:
-    - Mozda bi trebalo ubaciti V boost zbog stabilnog 5V napona.
 */
 
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
+#include <EEPROM.h>
 
+const int eepromPos = 55;       // pozicija na EEPROMu na kojoj se cuva podatak o jacini zvuka
 const int pinPIR = 2;           // PIR senzor; ako se promeni ova vrednost, obavezno izmeniti PCINT? u sleep() i setup()
-const int pinVolUp = 1;         // taster za pojacavanje zvuka na buzzer-u
+const int pinVolUp = 4;         // taster za pojacavanje zvuka na buzzer-u
 const int pinVolDown = 3;       // taster za smanjivanje zvuka na buzzer-u
 const int pinBuzz = 0;          // buzzer/zvucnik
 const int itvBuzzOn = 350;      // trajanje u msec piska
@@ -37,6 +37,8 @@ void setup()
   pinMode(pinBuzz, OUTPUT);
   digitalWrite(pinBuzz, false);
 
+  vol = EEPROM.read(eepromPos);
+
   GIMSK |= _BV(PCIE);   // Enable Pin Change Interrupts
   PCMSK |= _BV(PCINT2); // Use PBX as interrupt pin
   sei();                // Enable interrupts
@@ -56,6 +58,13 @@ void sleep()
 ISR(PCINT0_vect)
 {
   msPirSignal = millis();
+}
+
+void apply_vol()
+{
+  EEPROM.write(eepromPos, vol);
+  delay(10);
+  analogWrite(pinBuzz, vol);
 }
 
 // podesavanje jacine zvuka buzzer-a na osnovu pritiska na vol tastere
@@ -81,8 +90,7 @@ void check_vol_press()
       if (vol > maxVol)
         vol = maxVol;
 
-      analogWrite(pinBuzz, vol);
-      //B delay(itvBuzzOn);
+      apply_vol();
     }
     if (digitalRead(pinVolDown) == volDownPress)
     {
@@ -93,8 +101,7 @@ void check_vol_press()
       if (vol < minVol)
         vol = minVol;
 
-      analogWrite(pinBuzz, vol);
-      //B delay(itvBuzzOn);
+      apply_vol();
     }
   }
 }
